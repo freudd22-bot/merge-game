@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لعبة الدمج الاحترافية - Merge Game Pro</title>
 <style>
-  body { font-family: Arial, sans-serif; text-align:center; background:#f0f0f0; }
-  #game { margin-top:20px; }
-  .element { display:inline-block; width:60px; height:60px; line-height:60px; margin:5px; font-size:18px; border-radius:8px; background:#fff; cursor:pointer; user-select:none; }
-  #balance { margin-top:10px; }
-  #messages { margin-top:15px; font-weight:bold; }
-  #login { margin-top:20px; }
+    body { font-family: Arial, sans-serif; background:#f0f8ff; text-align:center; margin:0; padding:0; }
+    #game { margin:20px auto; max-width:500px; }
+    .button { padding:10px 20px; margin:5px; cursor:pointer; }
+    .merge-btn { background:#4CAF50; color:white; border:none; }
+    #status { margin-top:10px; font-weight:bold; }
+    input { padding:8px; margin:5px; width:80%; font-size:16px; }
 </style>
 </head>
 <body>
@@ -18,73 +18,82 @@
 <h1>لعبة الدمج الاحترافية - Merge Game Pro</h1>
 
 <div id="login">
-  <input type="text" id="email" placeholder="أدخل بريدك أو اسمك (guest)">
-  <button onclick="login()">دخول</button>
+    <h3>تسجيل الدخول أو الدخول كزائر</h3>
+    <input type="email" id="email" placeholder="البريد الإلكتروني">
+    <input type="text" id="guest" placeholder="أدخل معرف الزائر">
+    <button class="button" onclick="login()">دخول</button>
 </div>
 
 <div id="game" style="display:none;">
-  <div id="elements"></div>
-  <div id="balance"></div>
-  <div id="messages"></div>
+    <h3>مرحباً، <span id="userId"></span></h3>
+    <p>الجواهر: <span id="gems"></span> | النقاط: <span id="points"></span> | DA: <span id="da"></span></p>
+
+    <h4>اختر عنصرين للدمج</h4>
+    <button class="button merge-btn" onclick="merge(1,1)">🍎</button>
+    <button class="button merge-btn" onclick="merge(2,2)">🍌</button>
+    <button class="button merge-btn" onclick="merge(3,3)">🍇</button>
+    <button class="button merge-btn" onclick="merge(4,4)">🥦</button>
+    <button class="button merge-btn" onclick="merge(1,4)">🍎+🥦</button>
+
+    <div id="status"></div>
+    <button class="button" onclick="charge()">شراء جواهر</button>
 </div>
 
 <script>
-const SERVER_URL = "https://gems-system.onrender.com";
-let player = { id:null, gems:0, points:0, da:0 };
-const items = ["🍎","🍌","🍇","🥝","🥕","🥒","🌽","🍆"];
+let currentUser = null;
 
 function login(){
-    let email = document.getElementById("email").value;
-    let guestId = "guest_"+Math.floor(Math.random()*100000);
-    fetch(SERVER_URL+"/api/login",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ email: email || null, guestId: email?null:guestId })
-    }).then(r=>r.json())
+    const email = document.getElementById('email').value;
+    const guest = document.getElementById('guest').value;
+    fetch('https://merge-game.onrender.com/api/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, guestId: guest })
+    })
+    .then(r=>r.json())
     .then(data=>{
-        player = data;
-        document.getElementById("login").style.display="none";
-        document.getElementById("game").style.display="block";
-        generateElements();
-        updateBalance();
+        currentUser = data.id;
+        document.getElementById('userId').innerText = currentUser;
+        document.getElementById('gems').innerText = data.gems;
+        document.getElementById('points').innerText = data.points;
+        document.getElementById('da').innerText = data.da;
+        document.getElementById('login').style.display='none';
+        document.getElementById('game').style.display='block';
     });
 }
 
-function generateElements(){
-    const container = document.getElementById("elements");
-    container.innerHTML="";
-    for(let i=0;i<4;i++){
-        let idx = Math.floor(Math.random()*items.length);
-        let el = document.createElement("div");
-        el.className="element";
-        el.innerText = items[idx];
-        el.onclick = ()=>mergeElement(i, idx);
-        container.appendChild(el);
-    }
-}
-
-let first = null;
-function mergeElement(index, idx){
-    if(first===null){ first={index, idx}; return; }
-    fetch(SERVER_URL+"/api/merge",{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ id:player.id, el1:first.idx, el2:idx })
-    }).then(r=>r.json())
+function merge(el1, el2){
+    if(!currentUser) return alert('سجل الدخول أولاً');
+    fetch('https://merge-game.onrender.com/api/merge',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id:currentUser, el1, el2 })
+    })
+    .then(r=>r.json())
     .then(data=>{
-        document.getElementById("messages").innerText = data.message;
-        player.gems = data.gems;
-        player.points = data.points;
-        player.da = data.da;
-        updateBalance();
-        generateElements();
-        first = null;
+        document.getElementById('status').innerText = data.message;
+        document.getElementById('gems').innerText = data.gems;
+        document.getElementById('points').innerText = data.points;
+        document.getElementById('da').innerText = data.da;
     });
 }
 
-function updateBalance(){
-    document.getElementById("balance").innerText = 
-      `Gems: ${player.gems} | Points: ${player.points} | DA: ${player.da}`;
+function charge(){
+    const gems = prompt("كم عدد الجواهر التي تريد شحنها؟");
+    if(!gems) return;
+    fetch('https://merge-game.onrender.com/api/charge',{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'x-api-key':'MERGE_GAME_2026_SECRET_KEY'
+        },
+        body: JSON.stringify({ id:currentUser, gems })
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        alert(data.message + ". الرصيد الجديد: " + data.balance);
+        document.getElementById('gems').innerText = data.balance;
+    });
 }
 </script>
 
