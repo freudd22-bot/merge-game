@@ -6,8 +6,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ملفات قاعدة البيانات
 const DB_FILE = "database.json";
-const API_KEY = "MERGE_GAME_2026_SECRET_KEY"; مفتاحك الخاص
+
+// استخدام Environment Variables لحماية المعلومات الحساسة
+// ضع هذه المتغيرات في Render أو أي سيرفر يدعم Environment Variables:
+// API_KEY = "MERGE_GAME_2026_SECRET_KEY"
+// CCP_NUMBER = "00799999000887214877"
+// PHONE_NUMBER = "0673121885"
+
+const API_KEY = process.env.API_KEY;
+const CCP_NUMBER = process.env.CCP_NUMBER;
+const PHONE_NUMBER = process.env.PHONE_NUMBER;
 
 function readDB() {
     if (!fs.existsSync(DB_FILE)) {
@@ -66,7 +76,7 @@ app.post("/api/merge", (req,res)=>{
     res.json({ message, gems:user.gems, points:user.points, da:user.da });
 });
 
-// لوحة التحكم – إضافة جواهر
+// لوحة التحكم – إضافة جواهر باستخدام API_KEY
 app.post("/api/charge", (req,res)=>{
     const key = req.headers['x-api-key'];
     if(key!==API_KEY) return res.status(403).json({ error:"Invalid API Key" });
@@ -77,6 +87,9 @@ app.post("/api/charge", (req,res)=>{
 
     db.users[id].gems += Number(gems);
     writeDB(db);
+
+    // هنا يمكنك إضافة كود إرسال إشعار على رقم PHONE_NUMBER عند وصول شحن الجواهر
+    // أو تحديث CCP_NUMBER تلقائيًا عند الدفع
 
     res.json({ message:"Gems added", balance:db.users[id].gems });
 });
